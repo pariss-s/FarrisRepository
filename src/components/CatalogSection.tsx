@@ -1,5 +1,14 @@
 import { useMemo, useState } from 'react';
-import { BookOpen, ScanBarcode, Search, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import {
+  BookOpen,
+  ScanBarcode,
+  Search,
+  X,
+  CheckCircle2,
+  AlertCircle,
+  SlidersHorizontal,
+  Sparkles,
+} from 'lucide-react';
 import { apiRequest } from '../lib/api';
 import type { Book, Loan, PublicUser } from '../types';
 import { BarcodeDisplay } from './BarcodeDisplay';
@@ -13,6 +22,8 @@ interface CatalogSectionProps {
   borrowRequestBook: Book | null;
   onClearBorrowRequest: () => void;
 }
+
+type SortOption = 'newest' | 'year' | 'title' | 'available';
 
 function BookCover({ book }: { book: Book }) {
   const [imgFailed, setImgFailed] = useState(false);
@@ -60,7 +71,11 @@ export function CatalogSection({
 }: CatalogSectionProps) {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('Semua');
+  const [availableOnly, setAvailableOnly] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
+
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [detailBook, setDetailBook] = useState<Book | null>(null);
   const [barcodeBook, setBarcodeBook] = useState<Book | null>(null);
 
   // Borrow form state
@@ -80,19 +95,52 @@ export function CatalogSection({
     return Array.from(set);
   }, [books]);
 
+  const availableTitleCount = useMemo(
+    () => books.filter((b) => b.availableCopies > 0).length,
+    [books]
+  );
+
+  // 4 koleksi terbaru berdasarkan tanggal penambahan & tahun terbit
+  const newestBooks = useMemo(() => {
+    return [...books]
+      .sort(
+        (a, b) =>
+          b.createdAt.localeCompare(a.createdAt) || b.year - a.year
+      )
+      .slice(0, 4);
+  }, [books]);
+
   const filteredBooks = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return books.filter((b) => {
+    const list = books.filter((b) => {
       if (activeCategory !== 'Semua' && b.category !== activeCategory) return false;
+      if (availableOnly && b.availableCopies <= 0) return false;
       if (!q) return true;
       return (
         b.title.toLowerCase().includes(q) ||
         b.author.toLowerCase().includes(q) ||
+        b.category.toLowerCase().includes(q) ||
+        b.publisher.toLowerCase().includes(q) ||
+        b.shelfLocation.toLowerCase().includes(q) ||
+        b.description.toLowerCase().includes(q) ||
         b.isbn.toLowerCase().includes(q) ||
         b.barcode.toLowerCase().includes(q)
       );
     });
-  }, [books, search, activeCategory]);
+
+    if (sortBy === 'title') {
+      return [...list].sort((a, b) => a.title.localeCompare(b.title, 'id'));
+    }
+    if (sortBy === 'year') {
+      return [...list].sort(
+        (a, b) => b.year - a.year || b.createdAt.localeCompare(a.createdAt)
+      );
+    }
+    if (sortBy === 'available') {
+      return [...list].sort((a, b) => b.availableCopies - a.availableCopies);
+    }
+    return [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }, [books, search, activeCategory, availableOnly, sortBy]);
 
   function openBorrowModal(book: Book, fromScanner = false) {
     if (!user) {
@@ -148,9 +196,12 @@ export function CatalogSection({
     { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }
   );
 
+  const isSearchingOrFiltering =
+    search.trim().length > 0 || activeCategory !== 'Semua' || availableOnly;
+
   return (
-    <section className="space-y-6">
-      {/* Editorial Intro + Search Toolbar */}
+    <section className="space-y-8">
+      {/* Editorial Intro + Search & Availability Filter Toolbar */}
       <div className="bg-white border border-slate-200 rounded-lg p-6">
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
           <div className="max-w-2xl">
@@ -158,8 +209,8 @@ export function CatalogSection({
               Katalog Koleksi & Peminjaman Buku Online
             </h1>
             <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-              Telusuri ketersediaan buku secara real-time, pindai kode barcode EAN-13/Code128
-              untuk verifikasi cepat, dan pantau batas pengembalian dengan pengingat email otomatis.
+              Telusuri ketersediaan buku di Farris Library secara real-time, filter koleksi yang
+              siap dipinjam, temukan edisi terbaru, dan verifikasi kode barcode EAN-13/Code128.
             </p>
           </div>
           <div className="flex items-center gap-3 shrink-0">
@@ -174,16 +225,59 @@ export function CatalogSection({
           </div>
         </div>
 
-        <div className="mt-6 pt-5 border-t border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari judul, penulis, ISBN, atau kode barcode..."
-              className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-700/20 focus:border-blue-700"
-            />
+        {/* Search + Availability Toggle + Sort */}
+        <div className="mt-6 pt-5 border-t border-slate-200 space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="relative flex-1 max-w-xl">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Cari judul, penulis, kategori, penerbit, rak, ISBN, atau barcode..."
+                className="w-full pl-9 pr-9 py-2 text-sm bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-700/20 focus:border-blue-700"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  aria-label="Hapus kata kunci pencarian"
+                  className="p-1 text-slate-400 hover:text-slate-700 absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setAvailableOnly((prev) => !prev)}
+                className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-md border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                  availableOnly
+                    ? 'bg-emerald-700 text-white border-emerald-700'
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Hanya yang Tersedia ({availableTitleCount})
+              </button>
+
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-300 rounded-md">
+                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                <select
+                  aria-label="Urutkan koleksi"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  className="text-xs font-medium text-slate-800 bg-transparent focus:outline-none cursor-pointer"
+                >
+                  <option value="newest">Urutkan: Koleksi Terbaru</option>
+                  <option value="year">Urutkan: Tahun Terbit Terbaru</option>
+                  <option value="available">Urutkan: Stok Terbanyak</option>
+                  <option value="title">Urutkan: Judul (A–Z)</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg overflow-x-auto max-w-full">
@@ -205,15 +299,126 @@ export function CatalogSection({
         </div>
       </div>
 
+      {/* Koleksi Terbaru Showcase (Visible when browsing full catalog) */}
+      {!isSearchingOrFiltering && newestBooks.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+            <div>
+              <div className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Koleksi Terbaru</span>
+              </div>
+              <h2 className="text-lg font-bold text-slate-900 mt-0.5">
+                Rilis & Pengadaan Terbaru di Farris Library
+              </h2>
+            </div>
+            <span className="text-xs text-slate-500 tabular-nums">
+              Menampilkan {newestBooks.length} koleksi paling baru ditambahkan
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            {newestBooks.map((book) => {
+              const isAvailable = book.availableCopies > 0;
+              return (
+                <article
+                  key={`newest-${book.id}`}
+                  className="bg-white border border-slate-200 rounded-lg p-4 flex flex-col justify-between gap-4 hover:border-slate-300 transition-colors"
+                >
+                  <div className="flex items-start gap-3.5">
+                    <button
+                      type="button"
+                      onClick={() => setDetailBook(book)}
+                      className="w-16 aspect-[3/4] rounded overflow-hidden border border-slate-200 shrink-0 cursor-pointer"
+                    >
+                      <BookCover book={book} />
+                    </button>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="text-[11px] text-slate-500 truncate">
+                        Terbit {book.year} · {book.category}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setDetailBook(book)}
+                        className="text-left text-sm font-semibold text-slate-900 hover:text-blue-700 leading-snug line-clamp-2 cursor-pointer"
+                      >
+                        {book.title}
+                      </button>
+                      <div className="text-xs text-slate-600 truncate">{book.author}</div>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-200 flex items-center justify-between gap-2">
+                    <span
+                      className={`text-xs font-medium tabular-nums ${
+                        isAvailable ? 'text-emerald-700' : 'text-red-700'
+                      }`}
+                    >
+                      {isAvailable
+                        ? `Tersedia (${book.availableCopies}/${book.totalCopies})`
+                        : 'Dipinjam Semua'}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={!isAvailable}
+                      onClick={() => openBorrowModal(book, false)}
+                      className="px-3 py-1.5 text-xs font-medium text-white bg-blue-700 hover:bg-blue-800 disabled:bg-slate-200 disabled:text-slate-500 rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                    >
+                      Pinjam
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Results Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-base font-semibold text-slate-900">
+          {isSearchingOrFiltering ? 'Hasil Pencarian Koleksi' : 'Semua Koleksi Katalog'}
+        </h2>
+        <div className="flex items-center gap-3 text-xs text-slate-500 tabular-nums">
+          <span>
+            Menampilkan {filteredBooks.length} dari {books.length} judul
+          </span>
+          {isSearchingOrFiltering && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch('');
+                setActiveCategory('Semua');
+                setAvailableOnly(false);
+              }}
+              className="text-blue-700 hover:text-blue-800 font-medium cursor-pointer"
+            >
+              Reset Filter
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Book Catalog Grid */}
       {filteredBooks.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-lg p-12 text-center">
+        <div className="bg-white border border-slate-200 rounded-lg p-12 text-center space-y-3">
           <p className="text-sm font-medium text-slate-900">
-            Tidak ada buku yang sesuai dengan pencarian Anda.
+            Tidak ada buku yang sesuai dengan kriteria pencarian Anda.
           </p>
-          <p className="text-xs text-slate-500 mt-1">
-            Coba ubah kata kunci atau pilih kategori lain.
+          <p className="text-xs text-slate-500">
+            Coba ubah kata kunci, nonaktifkan filter ketersediaan, atau pilih kategori lain.
           </p>
+          <button
+            type="button"
+            onClick={() => {
+              setSearch('');
+              setActiveCategory('Semua');
+              setAvailableOnly(false);
+            }}
+            className="px-4 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-md cursor-pointer"
+          >
+            Tampilkan Semua Koleksi
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -225,18 +430,28 @@ export function CatalogSection({
                 className="bg-white border border-slate-200 rounded-lg overflow-hidden flex flex-col justify-between transition-colors hover:border-slate-300"
               >
                 <div>
-                  <div className="aspect-[3/4] w-full bg-slate-100 overflow-hidden border-b border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setDetailBook(book)}
+                    className="aspect-[3/4] w-full bg-slate-100 overflow-hidden border-b border-slate-200 block cursor-pointer"
+                  >
                     <BookCover book={book} />
-                  </div>
+                  </button>
                   <div className="p-4 space-y-2">
                     <div className="flex items-center gap-1.5 text-xs text-slate-500 truncate">
                       <span>{book.category}</span>
                       <span aria-hidden="true">·</span>
                       <span>{book.shelfLocation}</span>
+                      <span aria-hidden="true">·</span>
+                      <span className="tabular-nums">{book.year}</span>
                     </div>
-                    <h3 className="text-sm font-semibold text-slate-900 leading-snug line-clamp-2">
+                    <button
+                      type="button"
+                      onClick={() => setDetailBook(book)}
+                      className="text-left text-sm font-semibold text-slate-900 hover:text-blue-700 leading-snug line-clamp-2 cursor-pointer"
+                    >
                       {book.title}
-                    </h3>
+                    </button>
                     <p className="text-xs text-slate-600 truncate">{book.author}</p>
                     <div className="pt-1 flex items-center justify-between text-xs">
                       <span
@@ -276,6 +491,94 @@ export function CatalogSection({
               </article>
             );
           })}
+        </div>
+      )}
+
+      {/* Book Detail Modal */}
+      {detailBook && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <h3 className="text-base font-semibold text-slate-900">Detail Koleksi Buku</h3>
+              <button
+                type="button"
+                onClick={() => setDetailBook(null)}
+                className="p-1 text-slate-500 hover:text-slate-900 rounded cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-6 space-y-5">
+              <div className="flex flex-col sm:flex-row gap-5">
+                <div className="w-32 aspect-[3/4] rounded-md overflow-hidden border border-slate-200 shrink-0">
+                  <BookCover book={detailBook} />
+                </div>
+                <div className="space-y-2 min-w-0">
+                  <div className="text-xs text-slate-500">
+                    {detailBook.category} · {detailBook.shelfLocation} · Terbit {detailBook.year}
+                  </div>
+                  <h4 className="text-lg font-bold text-slate-900 leading-snug">
+                    {detailBook.title}
+                  </h4>
+                  <div className="text-xs text-slate-700">
+                    Penulis: <span className="font-medium">{detailBook.author}</span>
+                  </div>
+                  <div className="text-xs text-slate-600">
+                    Penerbit: {detailBook.publisher}
+                  </div>
+                  <div className="text-xs font-mono text-slate-600">
+                    ISBN {detailBook.isbn} · Barcode {detailBook.barcode}
+                  </div>
+                  <div
+                    className={`text-xs font-semibold tabular-nums pt-1 ${
+                      detailBook.availableCopies > 0 ? 'text-emerald-700' : 'text-red-700'
+                    }`}
+                  >
+                    {detailBook.availableCopies > 0
+                      ? `Tersedia ${detailBook.availableCopies} dari ${detailBook.totalCopies} eksemplar`
+                      : `Sedang dipinjam semua (0/${detailBook.totalCopies})`}
+                  </div>
+                </div>
+              </div>
+
+              {detailBook.description && (
+                <p className="text-xs text-slate-600 leading-relaxed border-t border-slate-200 pt-4">
+                  {detailBook.description}
+                </p>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = detailBook;
+                    setDetailBook(null);
+                    setBarcodeBook(target);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 rounded-md cursor-pointer"
+                >
+                  <ScanBarcode className="w-3.5 h-3.5" />
+                  Lihat Barcode
+                </button>
+                <button
+                  type="button"
+                  disabled={detailBook.availableCopies <= 0}
+                  onClick={() => {
+                    const target = detailBook;
+                    setDetailBook(null);
+                    openBorrowModal(target, false);
+                  }}
+                  className="px-4 py-2 text-xs font-medium text-white bg-blue-700 hover:bg-blue-800 disabled:bg-slate-200 disabled:text-slate-500 rounded-md cursor-pointer"
+                >
+                  {detailBook.availableCopies > 0 ? 'Pinjam Buku Ini' : 'Stok Habis'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

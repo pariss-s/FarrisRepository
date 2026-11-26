@@ -291,20 +291,40 @@ async function startServer() {
   app.get('/api/books', (req, res) => {
     const q = cleanString(req.query.q, 100).toLowerCase();
     const category = cleanString(req.query.category, 60);
-    let books = libraryStore.getData().books;
+    const availableOnly = req.query.availableOnly === 'true';
+    const sort = cleanString(req.query.sort, 24) || 'newest';
+    let books = [...libraryStore.getData().books];
 
     if (category && category !== 'Semua') {
       books = books.filter((b) => b.category === category);
+    }
+    if (availableOnly) {
+      books = books.filter((b) => b.availableCopies > 0);
     }
     if (q) {
       books = books.filter(
         (b) =>
           b.title.toLowerCase().includes(q) ||
           b.author.toLowerCase().includes(q) ||
+          b.category.toLowerCase().includes(q) ||
+          b.publisher.toLowerCase().includes(q) ||
+          b.shelfLocation.toLowerCase().includes(q) ||
+          b.description.toLowerCase().includes(q) ||
           b.isbn.toLowerCase().includes(q) ||
           b.barcode.toLowerCase().includes(q)
       );
     }
+
+    if (sort === 'title') {
+      books.sort((a, b) => a.title.localeCompare(b.title, 'id'));
+    } else if (sort === 'year') {
+      books.sort((a, b) => b.year - a.year || b.createdAt.localeCompare(a.createdAt));
+    } else if (sort === 'available') {
+      books.sort((a, b) => b.availableCopies - a.availableCopies);
+    } else {
+      books.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    }
+
     res.json({ books });
   });
 
@@ -350,7 +370,7 @@ async function startServer() {
     const isbn = cleanString(req.body?.isbn, 32);
     const barcode = cleanString(req.body?.barcode, 32).replace(/\s/g, '');
     const category = cleanString(req.body?.category, 60) || 'Umum';
-    const publisher = cleanString(req.body?.publisher, 100) || 'Pustaka Aksara';
+    const publisher = cleanString(req.body?.publisher, 100) || 'Farris Library';
     const year = cleanPositiveInt(req.body?.year, 2026, 1800, 2100);
     const shelfLocation = cleanString(req.body?.shelfLocation, 40) || 'Rak A-01';
     const totalCopies = cleanPositiveInt(req.body?.totalCopies, 1, 1, 500);

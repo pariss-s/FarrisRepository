@@ -396,6 +396,59 @@ export function DashboardSection({
           </div>
         </div>
       )}
+
+      {/* Panduan Cara Menggunakan Perpustakaan Digital */}
+      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200">
+          <h3 className="text-base font-semibold text-slate-900">
+            Panduan Penggunaan Perpustakaan Digital Farris Library
+          </h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Langkah singkat untuk mencari koleksi, meminjam buku online, memverifikasi barcode, dan memantau pengingat jatuh tempo
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
+          <div className="p-6 space-y-2">
+            <div className="text-xs font-mono font-semibold text-blue-700">01. Masuk Portal</div>
+            <h4 className="text-sm font-semibold text-slate-900">Daftar atau Masuk Akun</h4>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Klik <span className="font-medium text-slate-800">Masuk Portal</span> di pojok kanan atas. Pilih{' '}
+              <span className="font-medium text-slate-800">Portal Member</span> untuk mendaftar sebagai anggota baru atau{' '}
+              <span className="font-medium text-slate-800">Administrator</span> untuk mengelola koleksi dan laporan.
+            </p>
+          </div>
+
+          <div className="p-6 space-y-2">
+            <div className="text-xs font-mono font-semibold text-blue-700">02. Cari & Pinjam</div>
+            <h4 className="text-sm font-semibold text-slate-900">Temukan Koleksi Tersedia</h4>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Buka menu <span className="font-medium text-slate-800">Katalog</span>, gunakan kolom pencarian atau aktifkan{' '}
+              <span className="font-medium text-slate-800">Hanya yang Tersedia</span>. Lihat bagian{' '}
+              <span className="font-medium text-slate-800">Koleksi Terbaru</span> lalu klik{' '}
+              <span className="font-medium text-slate-800">Pinjam Buku</span> dan pilih durasi 3–14 hari.
+            </p>
+          </div>
+
+          <div className="p-6 space-y-2">
+            <div className="text-xs font-mono font-semibold text-blue-700">03. Integrasi Barcode</div>
+            <h4 className="text-sm font-semibold text-slate-900">Pindai & Verifikasi Buku</h4>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Gunakan tombol <span className="font-medium text-slate-800">Pindai Barcode</span> melalui kamera, unggah gambar label, atau pemindai USB untuk mengecek ketersediaan instan, input koleksi baru (Admin), dan verifikasi pengembalian buku.
+            </p>
+          </div>
+
+          <div className="p-6 space-y-2">
+            <div className="text-xs font-mono font-semibold text-blue-700">04. Email & Laporan</div>
+            <h4 className="text-sm font-semibold text-slate-900">Pantau Jatuh Tempo Real-Time</h4>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Dashboard memperbarui statistik secara otomatis melalui WebSocket. Sistem mengirim pengingat email 24 jam sebelum jatuh tempo, sementara Admin dapat mengunduh rekap transaksi CSV di menu{' '}
+              <span className="font-medium text-slate-800">Laporan & Email</span>.
+            </p>
+          </div>
+        </div>
+      </div>
     </section>
   );
 }
+

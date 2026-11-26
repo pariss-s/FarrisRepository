@@ -433,10 +433,67 @@ function createInitialData(): LibraryStoreData {
     reportSchedule: {
       enabled: true,
       frequency: 'daily',
-      recipientEmail: 'admin@pustaka-aksara.id',
+      recipientEmail: 'admin@farrislibrary.id',
       lastGeneratedAt: null,
     },
   };
+}
+
+function getNewest2026Additions(): BookRecord[] {
+  const now = new Date().toISOString();
+  return [
+    {
+      id: 'bk-009',
+      title: 'Rekayasa Sistem AI & Agen Otonom',
+      author: 'Dr. Farhan Hakim',
+      isbn: '978-623-10-4401-2',
+      barcode: '9786231044012',
+      category: 'Informatika',
+      publisher: 'Farris Library Press',
+      year: 2026,
+      shelfLocation: 'Rak A-02',
+      totalCopies: 6,
+      availableCopies: 6,
+      coverUrl: '/src/assets/images/cover_sistem_terdistribusi_1795659581578.jpg',
+      description: 'Rancangan arsitektur agen otonom, orkestrasi memori kontekstual, dan evaluasi keandalan sistem AI modern.',
+      createdAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+      updatedAt: now,
+    },
+    {
+      id: 'bk-010',
+      title: 'Desain Antarmuka Adaptif & Sistem Tipografi Digital',
+      author: 'Clarissa Kusumo',
+      isbn: '978-623-10-4402-9',
+      barcode: '9786231044029',
+      category: 'Desain & Seni',
+      publisher: 'Studio Grafis Merdeka',
+      year: 2026,
+      shelfLocation: 'Rak B-08',
+      totalCopies: 5,
+      availableCopies: 5,
+      coverUrl: '/src/assets/images/cover_desain_tipografi_1795659582634.jpg',
+      description: 'Pendekatan sistematis dalam merancang sistem desain responsif, aksesibilitas kontras, dan keterbacaan multi-perangkat.',
+      createdAt: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
+      updatedAt: now,
+    },
+    {
+      id: 'bk-011',
+      title: 'Konservasi Ekosistem Pesisir & Perubahan Iklim',
+      author: 'Prof. Larasati Wibowo',
+      isbn: '978-623-10-4403-6',
+      barcode: '9786231044036',
+      category: 'Ekologi & Alam',
+      publisher: 'Pustaka Konservasi',
+      year: 2026,
+      shelfLocation: 'Rak C-05',
+      totalCopies: 4,
+      availableCopies: 4,
+      coverUrl: '/src/assets/images/cover_ekologi_nusantara_1795659584064.jpg',
+      description: 'Riset lapangan mengenai rehabilitasi mangrove, karbon biru, dan ketahanan ekologi wilayah kepulauan.',
+      createdAt: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
+      updatedAt: now,
+    },
+  ];
 }
 
 class LibraryStore {
@@ -455,6 +512,16 @@ class LibraryStore {
         const raw = fs.readFileSync(STORE_PATH, 'utf8');
         const parsed = JSON.parse(raw) as LibraryStoreData;
         if (parsed && Array.isArray(parsed.books) && Array.isArray(parsed.loans)) {
+          let changed = false;
+          for (const newestBook of getNewest2026Additions()) {
+            if (!parsed.books.some((b) => b.id === newestBook.id || b.barcode === newestBook.barcode)) {
+              parsed.books.unshift(newestBook);
+              changed = true;
+            }
+          }
+          if (changed) {
+            this.persist(parsed);
+          }
           return parsed;
         }
       }
@@ -462,6 +529,9 @@ class LibraryStore {
       console.error('Failed to load library store, initializing default data:', err);
     }
     const initial = createInitialData();
+    for (const newestBook of getNewest2026Additions().reverse()) {
+      initial.books.unshift(newestBook);
+    }
     this.persist(initial);
     return initial;
   }
