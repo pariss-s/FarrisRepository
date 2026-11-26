@@ -236,7 +236,17 @@ export default function App() {
     [user, showToast]
   );
 
-  const { connected: wsConnected } = useLibraryWebSocket(handleWsEvent);
+  const handlePollRefresh = useCallback(() => {
+    void loadPublicData();
+    if (user) {
+      void loadAuthedData(user);
+    }
+  }, [loadPublicData, loadAuthedData, user]);
+
+  const { connected: wsConnected, syncMode } = useLibraryWebSocket(
+    handleWsEvent,
+    handlePollRefresh
+  );
 
   function openAuth(tab: 'member' | 'admin' = 'member') {
     setAuthModalTab(tab);
@@ -464,6 +474,7 @@ export default function App() {
                 analytics={analytics}
                 user={user}
                 wsConnected={wsConnected}
+                syncMode={syncMode}
                 loans={loans}
                 activities={activities}
                 emails={emails}

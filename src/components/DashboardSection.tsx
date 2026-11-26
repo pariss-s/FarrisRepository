@@ -22,6 +22,7 @@ interface DashboardSectionProps {
   analytics: DashboardAnalytics;
   user: PublicUser | null;
   wsConnected: boolean;
+  syncMode: 'websocket' | 'polling' | 'reconnecting';
   loans: Loan[];
   activities: ActivityEvent[];
   emails: EmailNotificationLog[];
@@ -66,6 +67,7 @@ export function DashboardSection({
   analytics,
   user,
   wsConnected,
+  syncMode,
   loans,
   activities,
   emails,
@@ -106,6 +108,11 @@ export function DashboardSection({
             <span className="inline-flex items-center gap-1.5 text-emerald-700 bg-white border border-slate-200 px-3 py-1.5 rounded-md">
               <Wifi className="w-3.5 h-3.5" />
               WebSocket Terhubung
+            </span>
+          ) : syncMode === 'polling' ? (
+            <span className="inline-flex items-center gap-1.5 text-blue-700 bg-white border border-slate-200 px-3 py-1.5 rounded-md">
+              <Wifi className="w-3.5 h-3.5" />
+              Sinkronisasi HTTP Aktif
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 text-amber-700 bg-white border border-slate-200 px-3 py-1.5 rounded-md">

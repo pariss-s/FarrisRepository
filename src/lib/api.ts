@@ -55,17 +55,37 @@ export interface WsMessage {
   timestamp: string;
 }
 
-export function useLibraryWebSocket(onEvent: (msg: WsMessage) => void): {
+export function useLibraryWebSocket(
+  onEvent: (msg: WsMessage) => void,
+  onPollRefresh?: () => void
+): {
   connected: boolean;
+  syncMode: 'websocket' | 'polling' | 'reconnecting';
 } {
   const [connected, setConnected] = useState(false);
+  const [syncMode, setSyncMode] = useState<'websocket' | 'polling' | 'reconnecting'>('reconnecting');
   const handlerRef = useRef(onEvent);
+  const pollRef = useRef(onPollRefresh);
   handlerRef.current = onEvent;
+  pollRef.current = onPollRefresh;
 
   useEffect(() => {
     let active = true;
     let ws: WebSocket | null = null;
     let reconnectTimer: number | null = null;
+    let pollTimer: number | null = null;
+    let consecutiveFailures = 0;
+    let openedOnce = false;
+
+    function startPollingFallback() {
+      if (!active) return;
+      setSyncMode('polling');
+      if (pollTimer === null) {
+        pollTimer = window.setInterval(() => {
+          pollRef.current?.();
+        }, 15_000);
+      }
+    }
 
     function connect() {
       if (!active) return;
@@ -74,7 +94,15 @@ export function useLibraryWebSocket(onEvent: (msg: WsMessage) => void): {
       ws = new WebSocket(url);
 
       ws.onopen = () => {
-        if (active) setConnected(true);
+        if (!active) return;
+        openedOnce = true;
+        consecutiveFailures = 0;
+        setConnected(true);
+        setSyncMode('websocket');
+        if (pollTimer !== null) {
+          window.clearInterval(pollTimer);
+          pollTimer = null;
+        }
       };
 
       ws.onmessage = (evt) => {
@@ -89,6 +117,12 @@ export function useLibraryWebSocket(onEvent: (msg: WsMessage) => void): {
       ws.onclose = () => {
         if (!active) return;
         setConnected(false);
+        consecutiveFailures += 1;
+        if (!openedOnce && consecutiveFailures >= 2) {
+          startPollingFallback();
+          return;
+        }
+        setSyncMode('reconnecting');
         reconnectTimer = window.setTimeout(connect, 2500);
       };
 
@@ -104,9 +138,12 @@ export function useLibraryWebSocket(onEvent: (msg: WsMessage) => void): {
       if (reconnectTimer !== null) {
         window.clearTimeout(reconnectTimer);
       }
+      if (pollTimer !== null) {
+        window.clearInterval(pollTimer);
+      }
       ws?.close();
     };
   }, []);
 
-  return { connected };
+  return { connected, syncMode };
 }

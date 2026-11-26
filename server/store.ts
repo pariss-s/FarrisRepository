@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import type {
   ActivityEvent,
   BookRecord,
@@ -7,7 +8,12 @@ import type {
   LoanRecord,
 } from './types.ts';
 
-const DATA_DIR = path.resolve(process.cwd(), 'data');
+const IS_SERVERLESS = Boolean(
+  process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
+);
+const DATA_DIR = IS_SERVERLESS
+  ? path.join(os.tmpdir(), 'farris-library-data')
+  : path.resolve(process.cwd(), 'data');
 const STORE_PATH = path.join(DATA_DIR, 'library-store.json');
 
 function hoursFromNow(hours: number): string {
@@ -537,12 +543,17 @@ class LibraryStore {
   }
 
   private persist(target: LibraryStoreData = this.data): void {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      const tmpPath = `${STORE_PATH}.tmp`;
+      fs.writeFileSync(tmpPath, JSON.stringify(target, null, 2), 'utf8');
+      fs.renameSync(tmpPath, STORE_PATH);
+    } catch (err) {
+      // Fallback safely on strictly read-only serverless sandboxes
+      console.warn('LibraryStore persistence skipped (read-only filesystem):', err);
     }
-    const tmpPath = `${STORE_PATH}.tmp`;
-    fs.writeFileSync(tmpPath, JSON.stringify(target, null, 2), 'utf8');
-    fs.renameSync(tmpPath, STORE_PATH);
   }
 
   getData(): LibraryStoreData {
